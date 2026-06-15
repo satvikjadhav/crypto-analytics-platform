@@ -71,3 +71,24 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
