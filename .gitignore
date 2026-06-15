@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+*.egg-info/
+.terraform/
+*.tfstate
+*.tfstate.backup
+.DS_Store
