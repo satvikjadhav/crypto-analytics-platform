@@ -52,3 +52,22 @@ resource "aws_s3_bucket_lifecycle_configuration" "data_lake" {
         }
     }
 }
+
+locals {
+    s3_prefixes = [
+        "raw/binance/trades/",
+        "raw/coingecko/",
+        "curated/delta/trades/",
+        "curated/delta/ohlcv/",
+        "checkpoints/",
+        "logs/",
+    ]
+}
+
+resource "aws_s3_object" "folder_placeholders" {
+    for_each = toset(local.s3_prefixes)
+    bucket = aws_s3_bucket.data_lake.id
+    key = each.value
+    content = ""
+    content_type = "application/x-directory"
+}
