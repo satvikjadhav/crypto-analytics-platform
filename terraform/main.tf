@@ -3,6 +3,7 @@ terraform {
   required_providers {
     aws = { source = "hashicorp/aws", version = "~> 5.0" }
     http = { source = "hashicorp/http", version = "~> 3.0" }
+    snowflake = { source = "Snowflake-Labs/snowflake", version = "~> 0.89" }
   }
   backend "s3" {
     bucket         = "tf-state-crypto-analytics-sj"
@@ -21,4 +22,11 @@ provider "aws" {
             ManagedBy = "terraform"
         }
     }
+}
+
+provider "snowflake" {
+    account  = var.snowflake_account
+    username = var.snowflake_username
+    password = var.snowflake_password
+    role     = "SYSADMIN"
 }
