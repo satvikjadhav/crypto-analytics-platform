@@ -76,3 +76,23 @@ resource "snowflake_role_grant" "pipeline_user" {
     role_name = snowflake_role.pipeline.name
     users = [snowflake_user.pipeline.name]
 }
+
+
+# AWS store snowflake credentials in secrets manager
+resource "aws_secretsmanager_secret" "snowflake" {
+    name = "crypto-analytics/snowflake/pipeline"
+    description = "Snowflake credentials for the crypto analytics pipeline"
+    recovery_window_in_days = 7
+}
+
+resource "aws_secretsmanager_secret_version" "snowflake" {
+    secret_id = aws_secretsmanager_secret.snowflake.id
+    secret_string = jsonencode({
+        account = var.snowflake_account,
+        username = snowflake_user.pipeline.name,
+        password = snowflake_user.pipeline.password
+        database = snowflake_database.crypto.name,
+        warehouse = snowflake_warehouse.pipeline.name,
+        role = snowflake_role.pipeline.name
+    })
+}
