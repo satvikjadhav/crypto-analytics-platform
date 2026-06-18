@@ -1,0 +1,13 @@
+crypto_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: CRYPTO_PIPELINE_USER
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: CRYPTO_PIPELINE_ROLE
+      database: CRYPTO_ANALYTICS
+      warehouse: CRYPTO_ANALYTICS_WH
+      schema: STAGING
+      threads: 4
