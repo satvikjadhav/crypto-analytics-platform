@@ -22,3 +22,4 @@ with DAG(
         task_id="pipeline_alive",
         bash_command='echo "Pipeline alive -- $(date)"',
     )
+    
