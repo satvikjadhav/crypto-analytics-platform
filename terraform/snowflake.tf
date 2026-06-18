@@ -96,3 +96,63 @@ resource "aws_secretsmanager_secret_version" "snowflake" {
         role = snowflake_role.pipeline.name
     })
 }
+
+# IAM role that Snowflake assumes to read your S3 bucket
+resource "aws_iam_role" "snowflake_s3_role" {
+    name = "crypto-snowflake-s3-role"
+
+    # Trust policy — Snowflake's AWS account assumes this role
+    # The exact principal is output by the storage integration after apply
+    assume_role_policy = jsonencode({
+        ersion = "2012-10-17"
+        Statement = [
+            {
+                Effect = "Allow"
+                Principal = {
+                    AWS = "arn:aws:iam::${snowflake_storage_integration.s3.storage_aws_iam_user_arn}:root"
+                }
+                Action = "sts:AssumeRole"
+                Condition = {
+                    StringEquals = {
+                        "sts:ExternalId" = snowflake_storage_integration.s3.storage_aws_external_id
+                    }
+                }
+            }
+        ]
+    })
+}
+
+resource "aws_iam_role_policy" "snowflake_s3" {
+    role = aws_iam_role.snowflake_s3_role.id
+    policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+            {
+                effect = "Allow"
+                Action = [
+                    "s3:GetObject",
+                    "s3:GetObjectVersion",
+                    "s3:ListBucket"
+                ]
+                Resource = [
+                    aws_s3_bucket.data_lake.arn,
+                    "${aws_s3_bucket.data_lake.arn}/*"
+                ]
+            }
+        ]
+    })
+}
+
+# Snowflake storage integration to connect to S3
+resource "snowflake_storage_integration" "s3" {
+  name    = "CRYPTO_S3_INTEGRATION"
+  type    = "EXTERNAL_STAGE"
+  enabled = true
+
+  storage_provider     = "S3"
+  storage_aws_role_arn = aws_iam_role.snowflake_s3_role.arn
+  storage_allowed_locations = [
+    "s3://${aws_s3_bucket.data_lake.bucket}/raw/",
+    "s3://${aws_s3_bucket.data_lake.bucket}/curated/",
+  ]
+}
