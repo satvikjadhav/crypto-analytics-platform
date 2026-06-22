@@ -31,18 +31,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: mkdir -p logs plugins dags
-      - run: docker compose up -d --build --wait --wait-timeout 120
-      - run: docker compose ps
+      - name: List repo files (debug)
+        run: ls -la
+      - name: Show docker compose file (debug)
+        run: |
+          if [ -f docker/docker-compose.yml ]; then
+            echo "Found compose file: docker/docker-compose.yml"
+            sed -n '1,200p' docker/docker-compose.yml
+          else
+            echo "docker/docker-compose.yml not found"
+            ls -la docker || true
+            exit 1
+          fi
+      - name: Docker Compose up
+        run: docker compose -f docker/docker-compose.yml up -d --build --wait --wait-timeout 120
+      - run: docker compose -f docker/docker-compose.yml ps
       - name: Assert no container exited
         run: |
-          EXITED=$(docker compose ps --status exited --quiet)
+          EXITED=$(docker compose -f docker/docker-compose.yml ps --status exited --quiet)
           if [ -n "$EXITED" ]; then
-            docker compose ps --status exited
-            docker compose logs
+            docker compose -f docker/docker-compose.yml ps --status exited
+            docker compose -f docker/docker-compose.yml logs
             exit 1
           fi
       - if: always()
-        run: docker compose down -v
+        run: docker compose -f docker/docker-compose.yml down -v
 
   terraform-validate:
     name: Terraform validate
