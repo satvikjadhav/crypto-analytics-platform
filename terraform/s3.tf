@@ -71,3 +71,5 @@ resource "aws_s3_object" "folder_placeholders" {
     content = ""
     content_type = "application/x-directory"
 }
+
+output "data_lake_bucket" { value = aws_s3_bucket.data_lake.bucket }
