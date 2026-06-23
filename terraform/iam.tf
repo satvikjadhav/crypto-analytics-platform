@@ -39,3 +39,12 @@ resource "aws_iam_user_policy_attachment" "pipeline" {
 resource "aws_iam_access_key" "pipeline" {
     user = aws_iam_user.pipeline.name
 }
+
+output "pipeline_key_id"     { 
+    value = aws_iam_access_key.pipeline.id 
+}
+
+output "pipeline_key_secret" { 
+    value = aws_iam_access_key.pipeline.secret 
+    sensitive = true 
+}

@@ -47,3 +47,5 @@ variable "git_repo_url" {
   description = "HTTPS or SSH URL of the Git repository containing Airflow DAGs (e.g. https://github.com/your-org/your-repo.git)"
   type        = string
 }
+
+variable "ssh_public_key_path"  { type = string; default = "~/.ssh/crypto_analytics_key.pub" }
