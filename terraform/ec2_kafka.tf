@@ -21,9 +21,7 @@ resource "aws_instance" "kafka" {
     volume_size = 30
     volume_type = "gp3"
   }
-  user_data = templatefile("${path.module}/bootstrap/kafka.sh", {
-    private_ip = aws_instance.kafka.private_ip
-  })
+  user_data = templatefile("${path.module}/bootstrap/kafka.sh", {})
   tags = {
     Name = "crypto-kafka"
   }
