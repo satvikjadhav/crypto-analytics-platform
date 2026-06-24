@@ -62,7 +62,7 @@ cd /opt/kafka && docker compose up -d --wait --wait-timeout 120
 
 sleep 15
 for TOPIC in "crypto.trades:10" "crypto.market_meta:3" "crypto.ohlcv_1m:10" "crypto.trades.dlq:3"; do
-  NAME="${TOPIC%%:*}"; PARTS="${TOPIC##*:}"
+  NAME="$${TOPIC%%:*}"; PARTS="$${TOPIC##*:}"
   docker exec kafka kafka-topics --bootstrap-server localhost:9092 --create \
     --topic $NAME --partitions $PARTS --replication-factor 1
 done

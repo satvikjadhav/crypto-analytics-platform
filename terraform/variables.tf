@@ -40,7 +40,7 @@ variable "snowflake_pipeline_password" {
 variable "airflow_fernet_key" {
   description = "Fernet key used by Airflow to encrypt secrets in the metadata database. Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
   type        = string
-  sensitive   = true  # prevents it from appearing in terraform plan/apply output
+  sensitive   = true # prevents it from appearing in terraform plan/apply output
 }
 
 variable "git_repo_url" {
@@ -48,4 +48,7 @@ variable "git_repo_url" {
   type        = string
 }
 
-variable "ssh_public_key_path"  { type = string; default = "~/.ssh/crypto_analytics_key.pub" }
+variable "ssh_public_key_path" {
+  type    = string
+  default = "~/.ssh/crypto_analytics_key.pub"
+}
