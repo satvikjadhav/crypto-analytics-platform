@@ -108,23 +108,21 @@ resource "aws_secretsmanager_secret_version" "snowflake" {
 
 # IAM role that Snowflake assumes to read your S3 bucket
 # ── Step 1: IAM role with a bootstrap trust policy ─────────────────────────
+data "aws_caller_identity" "current" {}
 resource "aws_iam_role" "snowflake_s3_role" {
   name = "crypto-snowflake-s3-role"
 
-  # Placeholder: lets Terraform create the role without needing the
-  # storage integration to exist yet. The null_resource below overwrites
-  # this with the real trust policy after the integration is created.
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { AWS = "arn:aws:iam::000000000000:root" } # placeholder
+      Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
       Action    = "sts:AssumeRole"
     }]
   })
 
   lifecycle {
-    ignore_changes = [assume_role_policy] # Don't revert the real policy on re-apply
+    ignore_changes = [assume_role_policy]
   }
 }
 

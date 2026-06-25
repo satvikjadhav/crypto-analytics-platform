@@ -4,7 +4,7 @@ crypto_analytics:
     dev:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
-      user: CRYPTO_PIPELINE_USER
+      user: "BOBJOE4444"
       password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
       role: CRYPTO_PIPELINE_ROLE
       database: CRYPTO_ANALYTICS
