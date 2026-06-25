@@ -13,15 +13,15 @@ data "aws_ami" "ubuntu" {
 
 resource "aws_instance" "kafka" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.medium"
+  instance_type          = "m7i-flex.large"
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.kafka.id]
   key_name               = aws_key_pair.crypto.key_name
   root_block_device {
-    volume_size = 30
+    volume_size = 50
     volume_type = "gp3"
   }
-  user_data = templatefile("${path.module}/bootstrap/kafka.sh", {})
+  user_data = file("${path.module}/bootstrap/kafka.sh")
   tags = {
     Name = "crypto-kafka"
   }
