@@ -122,7 +122,7 @@ for TOPIC in "${TOPICS[@]}"; do
   NAME="${TOPIC%%:*}"
   PARTS="${TOPIC##*:}"
   docker exec kafka kafka-topics \
-    --bootstrap-server localhost:9092 \
+    --bootstrap-server localhost:29092 \
     --create \
     --if-not-exists \
     --topic "$NAME" \
