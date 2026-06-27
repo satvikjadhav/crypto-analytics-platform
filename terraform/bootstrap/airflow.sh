@@ -10,6 +10,10 @@ usermod -aG docker ubuntu
 git clone ${git_repo_url} /opt/airflow/repo
 mkdir -p /opt/airflow/logs /opt/airflow/plugins
 
+# Fix: Airflow container runs as UID 50000; grant write access before any container starts
+chown -R 50000:0 /opt/airflow/logs /opt/airflow/plugins
+chmod -R 775 /opt/airflow/logs /opt/airflow/plugins
+
 cat > /opt/airflow/docker-compose.yml << 'EOF'
 version: '3.8'
 x-airflow-common: &airflow-common
@@ -21,6 +25,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__FERNET_KEY: '${fernet_key}'
     KAFKA_BOOTSTRAP_SERVERS: '${kafka_private_ip}:9092'
     SPARK_MASTER_URL: 'spark://${spark_private_ip}:7077'
+  # Fix: explicitly set the user so container permissions match host chown above
+  user: "50000:0"
   volumes:
     - /opt/airflow/repo/dags:/opt/airflow/dags
     - /opt/airflow/logs:/opt/airflow/logs
@@ -53,6 +59,12 @@ services:
     command: webserver
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   airflow-scheduler:
     <<: *airflow-common
@@ -65,12 +77,36 @@ volumes:
 EOF
 
 cd /opt/airflow
+
+# Start postgres and wait for it to be healthy
 docker compose up -d postgres
-sleep 20
-docker compose run --rm airflow-webserver airflow db init
-docker compose run --rm airflow-webserver airflow users create \
-  --username admin --password admin --role Admin \
-  --email admin@example.com --firstname Admin --lastname User
+
+echo "Waiting for postgres to be healthy..."
+for i in $(seq 1 30); do
+  if docker compose exec -T postgres pg_isready -U airflow > /dev/null 2>&1; then
+    echo "Postgres is ready."
+    break
+  fi
+  echo "  attempt $i/30 — sleeping 5s..."
+  sleep 5
+done
+
+# Fix: use a one-shot init container instead of reusing the webserver image ad-hoc,
+# and ensure logs dir exists with correct ownership before db init runs
+docker compose run --rm \
+  --user "50000:0" \
+  airflow-webserver airflow db init
+
+docker compose run --rm \
+  --user "50000:0" \
+  airflow-webserver airflow users create \
+    --username admin \
+    --password admin \
+    --role Admin \
+    --email admin@example.com \
+    --firstname Admin \
+    --lastname User
+
 docker compose up -d airflow-webserver airflow-scheduler
 
 # DAG auto-deploy cron
@@ -99,5 +135,6 @@ TimeoutStartSec=300
 [Install]
 WantedBy=multi-user.target
 SVC
+
 systemctl daemon-reload && systemctl enable crypto-airflow.service
 echo "Airflow bootstrap complete"
