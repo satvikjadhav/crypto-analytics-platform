@@ -9,3 +9,5 @@ __pycache__/
 venv
 terraform/.terraform.lock.hcl
 terraform/terraform.tfvars
+terraform/terraform_outputs.json
+terraform/tfplan
