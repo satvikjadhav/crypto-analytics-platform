@@ -3,30 +3,47 @@ set -euo pipefail
 exec > /var/log/bootstrap.log 2>&1
 
 apt-get update -y
-apt-get install -y docker.io docker-compose-v2 git awscli
+apt-get install -y docker.io docker-compose-v2 git awscli python3-pip
 systemctl enable docker && systemctl start docker
 usermod -aG docker ubuntu
 
+# ── Generate a valid Fernet key on the instance ──────────────────────────────
+# Python's cryptography library guarantees a correct 32-byte URL-safe base64 key.
+FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+
+# Persist it to Secrets Manager so it survives instance replacement
+aws secretsmanager put-secret-value \
+  --region ${aws_region} \
+  --secret-id crypto-airflow/fernet-key \
+  --secret-string "$FERNET_KEY" \
+  || echo "WARNING: could not write Fernet key to Secrets Manager"
+
+echo "Generated Fernet key: $FERNET_KEY"  # visible in /var/log/bootstrap.log only
+
+# ── Clone DAG repo ────────────────────────────────────────────────────────────
 git clone ${git_repo_url} /opt/airflow/repo
 mkdir -p /opt/airflow/logs /opt/airflow/plugins
 
-# Fix: Airflow container runs as UID 50000; grant write access before any container starts
+# Airflow container runs as UID 50000
 chown -R 50000:0 /opt/airflow/logs /opt/airflow/plugins
 chmod -R 775 /opt/airflow/logs /opt/airflow/plugins
 
-cat > /opt/airflow/docker-compose.yml << 'EOF'
+# ── Write docker-compose.yml ──────────────────────────────────────────────────
+# Note: $FERNET_KEY is a shell variable here — NOT a Terraform template variable.
+# We close the heredoc with a quoted 'EOF' to prevent Terraform templatefile()
+# from trying to interpolate $FERNET_KEY as a template variable.
+cat > /opt/airflow/docker-compose.yml << COMPOSE_EOF
 version: '3.8'
 x-airflow-common: &airflow-common
   image: apache/airflow:2.8.1
+  user: "50000:0"
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW__CORE__FERNET_KEY: '${fernet_key}'
+    AIRFLOW__CORE__FERNET_KEY: '$FERNET_KEY'
     KAFKA_BOOTSTRAP_SERVERS: '${kafka_private_ip}:9092'
     SPARK_MASTER_URL: 'spark://${spark_private_ip}:7077'
-  # Fix: explicitly set the user so container permissions match host chown above
-  user: "50000:0"
   volumes:
     - /opt/airflow/repo/dags:/opt/airflow/dags
     - /opt/airflow/logs:/opt/airflow/logs
@@ -74,11 +91,10 @@ services:
 
 volumes:
   postgres_data:
-EOF
+COMPOSE_EOF
 
+# ── Start postgres and wait ───────────────────────────────────────────────────
 cd /opt/airflow
-
-# Start postgres and wait for it to be healthy
 docker compose up -d postgres
 
 echo "Waiting for postgres to be healthy..."
@@ -91,25 +107,21 @@ for i in $(seq 1 30); do
   sleep 5
 done
 
-# Fix: use a one-shot init container instead of reusing the webserver image ad-hoc,
-# and ensure logs dir exists with correct ownership before db init runs
-docker compose run --rm \
-  --user "50000:0" \
-  airflow-webserver airflow db init
+# ── Init DB and create admin user ─────────────────────────────────────────────
+docker compose run --rm --user "50000:0" airflow-webserver airflow db migrate
 
-docker compose run --rm \
-  --user "50000:0" \
-  airflow-webserver airflow users create \
-    --username admin \
-    --password admin \
-    --role Admin \
-    --email admin@example.com \
-    --firstname Admin \
-    --lastname User
+docker compose run --rm --user "50000:0" airflow-webserver airflow users create \
+  --username admin \
+  --password admin \
+  --role Admin \
+  --email admin@example.com \
+  --firstname Admin \
+  --lastname User
 
+# ── Start all services ────────────────────────────────────────────────────────
 docker compose up -d airflow-webserver airflow-scheduler
 
-# DAG auto-deploy cron
+# ── DAG auto-deploy cron ──────────────────────────────────────────────────────
 cat > /opt/airflow/sync_dags.sh << 'SCRIPT'
 #!/bin/bash
 cd /opt/airflow/repo && git pull origin main >> /var/log/dag_sync.log 2>&1
@@ -117,7 +129,7 @@ SCRIPT
 chmod +x /opt/airflow/sync_dags.sh
 echo "*/5 * * * * ubuntu /opt/airflow/sync_dags.sh" > /etc/cron.d/dag-sync
 
-# Systemd service
+# ── Systemd service ───────────────────────────────────────────────────────────
 cat > /etc/systemd/system/crypto-airflow.service << 'SVC'
 [Unit]
 Description=Crypto Airflow Stack

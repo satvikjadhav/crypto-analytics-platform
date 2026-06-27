@@ -14,8 +14,8 @@ resource "aws_instance" "airflow" {
   user_data = templatefile("${path.module}/bootstrap/airflow.sh", {
     kafka_private_ip = aws_instance.kafka.private_ip
     spark_private_ip = aws_instance.spark.private_ip
-    fernet_key       = var.airflow_fernet_key
     git_repo_url     = var.git_repo_url
+    aws_region       = var.aws_region
   })
 
   tags = {
@@ -24,7 +24,8 @@ resource "aws_instance" "airflow" {
 
   depends_on = [
     aws_instance.kafka,
-    aws_instance.spark
+    aws_instance.spark,
+    aws_secretsmanager_secret.fernet_key # key must exist before bootstrap runs
   ]
 }
 
@@ -66,7 +67,8 @@ resource "aws_iam_role_policy" "airflow" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = [
-          aws_secretsmanager_secret.snowflake.arn
+          aws_secretsmanager_secret.snowflake.arn,
+          aws_secretsmanager_secret.fernet_key.arn
         ]
       },
       {
@@ -88,6 +90,11 @@ resource "aws_iam_role_policy" "airflow" {
 resource "aws_iam_instance_profile" "airflow" {
   name = "crypto-airflow-profile"
   role = aws_iam_role.airflow.name
+}
+
+output "fernet_key_secret_arn" {
+  value       = aws_secretsmanager_secret.fernet_key.arn
+  description = "ARN of the Secrets Manager secret holding the Fernet key"
 }
 
 output "airflow_public_ip" {
