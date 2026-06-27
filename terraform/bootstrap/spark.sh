@@ -4,7 +4,7 @@ exec > /var/log/bootstrap.log 2>&1
 
 # ── System packages ────────────────────────────────────────────────────────────
 apt-get update -y
-apt-get install -y docker.io docker-compose-plugin unzip curl
+apt-get install -y docker.io docker-compose-v2 unzip curl
 
 systemctl enable docker
 systemctl start docker
@@ -18,7 +18,8 @@ mkdir -p /opt/spark
 CORES=$(nproc)
 MEM_MB=$(awk '/MemAvailable/ {print int($2 * 0.85 / 1024)}' /proc/meminfo)
 
-# .env file – loaded explicitly via env_file in compose
+# .env file – loaded explicitly via env_file in compose.
+# Terraform interpolates the $${ } vars below at plan/apply time.
 cat > /opt/spark/.env << EOF
 KAFKA_BOOTSTRAP_SERVERS=${kafka_private_ip}:9092
 S3_BUCKET=${s3_bucket}
@@ -28,7 +29,10 @@ SPARK_WORKER_MEMORY_MB=$MEM_MB
 EOF
 
 # ── Docker Compose stack ───────────────────────────────────────────────────────
-cat > /opt/spark/docker-compose.yml << 'EOF'
+# Unquoted heredoc: shell fills in $CORES/$MEM_MB at runtime.
+# $${...} in the history server opts is Docker Compose variable substitution
+# syntax (the double $ escapes one level so Terraform passes it through as $${}).
+cat > /opt/spark/docker-compose.yml << EOF
 services:
   spark-master:
     image: apache/spark:3.4.4
@@ -61,8 +65,8 @@ services:
     command: >
       /opt/spark/bin/spark-class
       org.apache.spark.deploy.worker.Worker
-      --cores ${SPARK_WORKER_CORES}
-      --memory ${SPARK_WORKER_MEMORY_MB}M
+      --cores $CORES
+      --memory $${MEM_MB}M
       spark://spark-master:7077
     depends_on:
       - spark-master
@@ -77,7 +81,7 @@ services:
     environment:
       SPARK_NO_DAEMONIZE: 'true'
       SPARK_HISTORY_OPTS: >-
-        -Dspark.history.fs.logDirectory=s3a://${S3_BUCKET}/spark-logs
+        -Dspark.history.fs.logDirectory=s3a://${s3_bucket}/spark-logs
         -Dspark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
         -Dspark.hadoop.com.amazonaws.services.s3.enableV4=true
     command: >
