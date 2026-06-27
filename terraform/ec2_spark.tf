@@ -1,6 +1,6 @@
 resource "aws_instance" "spark" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.large"
+  instance_type          = "m7i-flex.large"
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.spark.id]
   key_name               = aws_key_pair.crypto.key_name
@@ -19,18 +19,20 @@ resource "aws_instance" "spark" {
     aws_region       = var.aws_region
   })
 
+  # Ignore user_data changes to prevent instance recreation on script updates.
+  # Apply bootstrap changes out-of-band or via a new AMI.
   lifecycle {
-    create_before_destroy = true
+    ignore_changes = [user_data]
   }
 
   tags = { Name = "crypto-spark" }
-  # depends_on removed: private_ip reference already creates implicit dependency
 }
 
 resource "aws_eip" "spark" {
-  instance = aws_instance.spark.id
-  domain   = "vpc"
-  tags     = { Name = "crypto-spark-eip" }
+  instance   = aws_instance.spark.id
+  domain     = "vpc"
+  depends_on = [aws_instance.spark]
+  tags       = { Name = "crypto-spark-eip" }
 }
 
 resource "aws_iam_role" "spark" {
@@ -63,27 +65,16 @@ resource "aws_iam_role_policy" "spark_s3" {
           aws_s3_bucket.data_lake.arn,
           "${aws_s3_bucket.data_lake.arn}/*"
         ]
-      },
-      {
-        # Allows SSM Session Manager access without needing open SSH port
-        Effect = "Allow"
-        Action = [
-          "ssm:UpdateInstanceInformation",
-          "ssmmessages:CreateControlChannel",
-          "ssmmessages:CreateDataChannel",
-          "ssmmessages:OpenControlChannel",
-          "ssmmessages:OpenDataChannel",
-          "ec2messages:AcknowledgeMessage",
-          "ec2messages:DeleteMessage",
-          "ec2messages:FailMessage",
-          "ec2messages:GetEndpoint",
-          "ec2messages:GetMessages",
-          "ec2messages:SendReply"
-        ]
-        Resource = ["*"]
       }
     ]
   })
+}
+
+# AmazonSSMManagedInstanceCore covers all SSM/ec2messages/ssmmessages permissions
+# and stays current as AWS updates the SSM agent — preferred over an inline policy.
+resource "aws_iam_role_policy_attachment" "spark_ssm" {
+  role       = aws_iam_role.spark.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_instance_profile" "spark" {
@@ -94,4 +85,5 @@ resource "aws_iam_instance_profile" "spark" {
 output "spark_public_ip" { value = aws_eip.spark.public_ip }
 output "spark_private_ip" { value = aws_instance.spark.private_ip }
 output "spark_instance_id" { value = aws_instance.spark.id }
-output "spark_ui_url" { value = "http://${aws_eip.spark.public_ip}:8082" }
+# spark_ui_url intentionally omitted: Spark web UI has no auth by default.
+# Restrict the security group to known CIDRs or add a reverse proxy before exposing this.

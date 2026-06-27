@@ -6,12 +6,6 @@ exec > /var/log/bootstrap.log 2>&1
 apt-get update -y
 apt-get install -y docker.io docker-compose-plugin unzip curl
 
-# Install AWS CLI v2 (apt ships outdated v1)
-curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
-unzip -q /tmp/awscliv2.zip -d /tmp
-/tmp/aws/install
-rm -rf /tmp/awscliv2.zip /tmp/aws
-
 systemctl enable docker
 systemctl start docker
 usermod -aG docker ubuntu
@@ -19,16 +13,22 @@ usermod -aG docker ubuntu
 # ── App directory ──────────────────────────────────────────────────────────────
 mkdir -p /opt/spark
 
+# Derive worker resources dynamically so this script stays correct if the
+# instance type changes. Reserve 15% of available RAM for the OS.
+CORES=$(nproc)
+MEM_MB=$(awk '/MemAvailable/ {print int($2 * 0.85 / 1024)}' /proc/meminfo)
+
 # .env file – loaded explicitly via env_file in compose
 cat > /opt/spark/.env << EOF
 KAFKA_BOOTSTRAP_SERVERS=${kafka_private_ip}:9092
 S3_BUCKET=${s3_bucket}
 AWS_REGION=${aws_region}
+SPARK_WORKER_CORES=$CORES
+SPARK_WORKER_MEMORY_MB=$MEM_MB
 EOF
 
 # ── Docker Compose stack ───────────────────────────────────────────────────────
 cat > /opt/spark/docker-compose.yml << 'EOF'
-version: '3.8'
 services:
   spark-master:
     image: apache/spark:3.4.4
@@ -61,17 +61,35 @@ services:
     command: >
       /opt/spark/bin/spark-class
       org.apache.spark.deploy.worker.Worker
-      --cores 2
-      --memory 4G
+      --cores ${SPARK_WORKER_CORES}
+      --memory ${SPARK_WORKER_MEMORY_MB}M
       spark://spark-master:7077
+    depends_on:
+      - spark-master
+
+  spark-history:
+    image: apache/spark:3.4.4
+    hostname: spark-history
+    container_name: spark-history
+    restart: always
+    env_file:
+      - .env
+    environment:
+      SPARK_NO_DAEMONIZE: 'true'
+      SPARK_HISTORY_OPTS: >-
+        -Dspark.history.fs.logDirectory=s3a://${S3_BUCKET}/spark-logs
+        -Dspark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+        -Dspark.hadoop.com.amazonaws.services.s3.enableV4=true
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.history.HistoryServer
+    ports:
+      - "18080:18080"
     depends_on:
       - spark-master
 EOF
 
-# ── Initial stack bring-up ─────────────────────────────────────────────────────
-cd /opt/spark && docker compose up -d
-
-# ── Systemd service for restart-on-reboot ─────────────────────────────────────
+# ── Systemd service (sole owner of stack lifecycle) ───────────────────────────
 cat > /etc/systemd/system/crypto-spark.service << 'SVC'
 [Unit]
 Description=Crypto Spark Stack
@@ -92,5 +110,8 @@ SVC
 
 systemctl daemon-reload
 systemctl enable crypto-spark.service
+# Systemd is the sole owner of the stack; start it here rather than calling
+# docker compose up directly so there's only one source of truth for lifecycle.
+systemctl start crypto-spark.service
 
 echo "Spark bootstrap complete"
