@@ -13,11 +13,16 @@ logging.basicConfig(level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-STREAM_URL = (
-    "wss://stream.binance.com:9443/stream?streams="
-    "btcusdt@trade/ethusdt@trade/bnbusdt@trade"
-    "/solusdt@trade/adausdt@trade"
-)
+# Coinbase Advanced Trade WebSocket — no geo-restrictions
+WS_URL = "wss://advanced-trade-ws.coinbase.com"
+
+PRODUCTS = ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "BNB-USD"]
+
+SUBSCRIBE_MSG = json.dumps({
+    "type": "subscribe",
+    "product_ids": PRODUCTS,
+    "channel": "market_trades",
+})
 
 producer = Producer({
     "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP"),
@@ -27,27 +32,36 @@ producer = Producer({
 })
 
 
+def on_open(ws):
+    log.info("Connected — subscribing to market_trades")
+    ws.send(SUBSCRIBE_MSG)
+
+
 def on_message(ws, message):
     try:
         wrapper = json.loads(message)
-        data = wrapper.get("data", {})
-        if data.get("e") != "trade":
+
+        # Coinbase sends a "subscriptions" confirmation first — skip it
+        if wrapper.get("channel") != "market_trades":
             return
-        event = {
-            "symbol":         data["s"],
-            "price":          float(data["p"]),
-            "quantity":       float(data["q"]),
-            "trade_time":     int(data["T"]),
-            "is_buyer_maker": bool(data["m"]),
-            "ingestion_ts":   int(time.time() * 1000),
-        }
-        producer.produce(
-            topic="crypto.trades",
-            key=event["symbol"].encode(),
-            value=json.dumps(event).encode(),
-            on_delivery=delivery_report,
-        )
-        producer.poll(0)
+
+        for trade in wrapper.get("events", []):
+            for t in trade.get("trades", []):
+                event = {
+                    "symbol":         t["product_id"].replace("-", ""),  # BTCUSDT-style
+                    "price":          float(t["price"]),
+                    "quantity":       float(t["size"]),
+                    "trade_time":     int(time.time() * 1000),  # Coinbase gives RFC3339; use ingest time
+                    "is_buyer_maker": t["side"] == "SELL",       # SELL = buyer is maker
+                    "ingestion_ts":   int(time.time() * 1000),
+                }
+                producer.produce(
+                    topic="crypto.trades",
+                    key=event["symbol"].encode(),
+                    value=json.dumps(event).encode(),
+                    on_delivery=delivery_report,
+                )
+                producer.poll(0)
     except (KeyError, ValueError) as exc:
         log.warning("Parse error: %s", exc)
 
@@ -70,8 +84,8 @@ def main():
     backoff = 1
     while True:
         ws = websocket.WebSocketApp(
-            STREAM_URL,
-            on_open=lambda ws: log.info("Connected"),
+            WS_URL,
+            on_open=on_open,
             on_message=on_message,
             on_error=lambda ws, e: log.error("WS error: %s", e),
             on_close=lambda ws, code, msg: log.warning("Closed (code=%s)", code),
