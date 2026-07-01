@@ -69,6 +69,14 @@ resource "aws_security_group" "kafka" {
   }
 
   ingress {
+  from_port   = 29092
+  to_port     = 29092
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/16"]
+  description = "Kafka internal listener from VPC for airflow and spark on port 29092"
+}
+
+  ingress {
     from_port   = 9092
     to_port     = 9092
     protocol    = "tcp"
