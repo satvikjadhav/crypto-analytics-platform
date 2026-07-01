@@ -10,6 +10,8 @@ PACKAGES = ",".join([
     "com.amazonaws:aws-java-sdk-bundle:1.12.262",
 ])
 
+BUCKET = os.getenv("S3_BUCKET")   # from /opt/spark/.env — includes initials suffix
+
 trade_schema = StructType([
     StructField("symbol",         StringType(),  False),
     StructField("price",          DoubleType(),  False),
@@ -61,3 +63,18 @@ parsed = (
 
 good = parsed.filter(F.col("symbol").isNotNull())
 bad = parsed.filter(F.col("symbol").isNull())
+
+# Write Delta Lake to s3
+delta_query = (
+    good
+    .withWatermark("trade_timestamp", "5 minutes")
+    .writeStream
+    .format("delta")
+    .outputMode("append")
+    .partitionBy("date", "symbol")
+    .option("checkpointLocation", f"s3a://{BUCKET}/checkpoints/trades/")
+    .trigger(processingTime="30 seconds")
+    .start(f"s3a://{BUCKET}/curated/delta/trades/")
+)
+
+delta_query.awaitTermination()
