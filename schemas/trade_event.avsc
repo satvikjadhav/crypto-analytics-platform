@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "TradeEvent",
+  "namespace": "com.crypto.analytics",
+  "fields": [
+    {"name": "symbol",         "type": "string"},
+    {"name": "price",          "type": "double"},
+    {"name": "quantity",       "type": "double"},
+    {"name": "trade_time",     "type": "long",
+     "logicalType": "timestamp-millis"},
+    {"name": "is_buyer_maker", "type": "boolean"},
+    {"name": "ingestion_ts",   "type": "long",
+     "logicalType": "timestamp-millis"}
+  ]
+}
