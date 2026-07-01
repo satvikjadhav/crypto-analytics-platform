@@ -121,13 +121,19 @@ docker compose run --rm --user "50000:0" airflow-webserver airflow users create 
 # ── Start all services ────────────────────────────────────────────────────────
 docker compose up -d airflow-webserver airflow-scheduler
 
-# ── DAG auto-deploy cron ──────────────────────────────────────────────────────
 cat > /opt/airflow/sync_dags.sh << 'SCRIPT'
 #!/bin/bash
-cd /opt/airflow/repo && git pull origin main >> /var/log/dag_sync.log 2>&1
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+cd /opt/airflow/repo && git pull origin main >> /opt/airflow/dag_sync.log 2>&1
 SCRIPT
 chmod +x /opt/airflow/sync_dags.sh
-echo "*/5 * * * * ubuntu /opt/airflow/sync_dags.sh" > /etc/cron.d/dag-sync
+
+# Pre-create the log file with correct ownership
+touch /opt/airflow/dag_sync.log
+chown ubuntu:ubuntu /opt/airflow/dag_sync.log
+
+printf '*/5 * * * * ubuntu /opt/airflow/sync_dags.sh\n' > /etc/cron.d/dag-sync
+chmod 644 /etc/cron.d/dag-sync
 
 # ── Systemd service ───────────────────────────────────────────────────────────
 cat > /etc/systemd/system/crypto-airflow.service << 'SVC'
