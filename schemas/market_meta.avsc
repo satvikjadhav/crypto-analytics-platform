@@ -1,0 +1,20 @@
+{
+  "type": "record",
+  "name": "MarketMeta",
+  "namespace": "com.crypto.analytics",
+  "fields": [
+    {"name": "coin_id",               "type": "string"},
+    {"name": "symbol",                "type": "string"},
+    {"name": "name",                  "type": "string"},
+    {"name": "current_price",         "type": "double"},
+    {"name": "market_cap",            "type": "long"},
+    {"name": "market_cap_rank",       "type": "int"},
+    {"name": "total_volume",          "type": "double"},
+    {"name": "price_change_24h",      "type": ["null", "double"], "default": null},
+    {"name": "price_change_pct_24h",  "type": ["null", "double"], "default": null},
+    {"name": "circulating_supply",    "type": ["null", "double"], "default": null},
+    {"name": "ath",                   "type": "double"},
+    {"name": "ingestion_ts",          "type": "long",
+     "logicalType": "timestamp-millis"}
+  ]
+}
