@@ -1,25 +1,29 @@
 import os
+import json
+import urllib.request
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StructType, StructField, StringType, LongType, BooleanType, DoubleType
+from pyspark.sql.avro.functions import from_avro
 
 PACKAGES = ",".join([
     "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.0",
     "io.delta:delta-core_2.12:2.4.0",
     "org.apache.hadoop:hadoop-aws:3.3.4",
     "com.amazonaws:aws-java-sdk-bundle:1.12.262",
+    "org.apache.spark:spark-avro_2.12:3.4.0",
 ])
 
-BUCKET = os.getenv("S3_BUCKET")   # from /opt/spark/.env — includes initials suffix
+BUCKET              = os.getenv("S3_BUCKET")
+KAFKA_BOOTSTRAP     = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
+SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "http://schema-registry:8081")
+SUBJECT             = "crypto.trades-value"
 
-trade_schema = StructType([
-    StructField("symbol",         StringType(),  False),
-    StructField("price",          DoubleType(),  False),
-    StructField("quantity",       DoubleType(),  False),
-    StructField("trade_time",     LongType(),    False),
-    StructField("is_buyer_maker", BooleanType(), False),
-    StructField("ingestion_ts",   LongType(),    False),
-])
+# ── Fetch Avro schema from Confluent Schema Registry ─────────────────────────
+url = f"{SCHEMA_REGISTRY_URL}/subjects/{SUBJECT}/versions/latest"
+with urllib.request.urlopen(url) as resp:
+    schema_json = json.loads(resp.read().decode())["schema"]
+print(f"[INFO] Fetched schema for subject '{SUBJECT}':\n{schema_json}\n")
+# ─────────────────────────────────────────────────────────────────────────────
 
 spark = (
     SparkSession.builder
@@ -30,7 +34,6 @@ spark = (
             "io.delta.sql.DeltaSparkSessionExtension")
     .config("spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-    # IAM instance profile — NO hardcoded access/secret keys
     .config("spark.hadoop.fs.s3a.aws.credentials.provider",
             "com.amazonaws.auth.InstanceProfileCredentialsProvider")
     .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
@@ -38,9 +41,6 @@ spark = (
             "org.apache.hadoop.fs.s3a.S3AFileSystem")
     .getOrCreate()
 )
-
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
-# On EC2 this resolves to: 10.0.1.45:9092
 
 raw_stream = (
     spark.readStream
@@ -53,21 +53,26 @@ raw_stream = (
     .load()
 )
 
+# ── Strip 5-byte Confluent header, deserialize Avro, derive timestamp cols ───
 parsed = (
     raw_stream
-    .select(F.from_json(F.col("value").cast("string"), trade_schema).alias("d"))
+    .select(
+        from_avro(
+            F.expr("substring(value, 6, length(value) - 5)"),
+            schema_json,
+        ).alias("d")
+    )
     .select("d.*")
     .withColumn("trade_timestamp", (F.col("trade_time") / 1000).cast("timestamp"))
     .withColumn("date", F.to_date("trade_timestamp"))
 )
 
 good = parsed.filter(F.col("symbol").isNotNull())
-bad = parsed.filter(F.col("symbol").isNull())
+bad  = parsed.filter(F.col("symbol").isNull())
 
-# Write Delta Lake to s3
+# ── Delta Lake sink ───────────────────────────────────────────────────────────
 delta_query = (
     good
-    .withWatermark("trade_timestamp", "5 minutes")
     .writeStream
     .format("delta")
     .outputMode("append")
@@ -77,4 +82,4 @@ delta_query = (
     .start(f"s3a://{BUCKET}/curated/delta/trades/")
 )
 
-delta_query.awaitTermination()
+delta_query.awaitTermination(180)

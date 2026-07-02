@@ -8,8 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv("/opt/producers/.env")
 
-logging.basicConfig(level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+)
 
 ENDPOINT = (
     "https://api.coingecko.com/api/v3/coins/markets"

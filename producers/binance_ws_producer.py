@@ -13,8 +13,9 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 
 
 load_dotenv("/opt/producers/.env")
-logging.basicConfig(level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+)
 log = logging.getLogger(__name__)
 
 # Coinbase Advanced Trade WebSocket — no geo-restrictions
