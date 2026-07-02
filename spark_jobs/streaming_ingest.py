@@ -82,4 +82,23 @@ delta_query = (
     .start(f"s3a://{BUCKET}/curated/delta/trades/")
 )
 
+# Dead-letter queue sink (optional) — uncomment to enable
+
+# dlq_query = (
+#     bad
+#     .select(
+#         F.col("raw_value").alias("value"),          # ← original bytes, re-publishable
+#         F.lit("parse_failure").alias("reason"),
+#         F.current_timestamp().alias("dlq_ts"),
+#     )
+#     .writeStream
+#     .format("kafka")
+#     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP)  # ← use the resolved var, not re-calling getenv
+#     .option("topic", "crypto.trades.dlq")
+#     .option("checkpointLocation", f"s3a://{BUCKET}/checkpoints/trades-dlq/")
+#     .trigger(processingTime="30 seconds")
+#     .start()
+# )
+
+
 delta_query.awaitTermination(180)
