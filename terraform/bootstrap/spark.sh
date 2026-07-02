@@ -52,6 +52,9 @@ services:
     ports:
       - "8082:8080"
       - "7077:7077"
+    volumes:
+      - ~/spark-jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-aws-3.3.4.jar
+      - ~/spark-jars/aws-java-sdk-bundle-1.12.262.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
 
   spark-worker:
     image: apache/spark:3.4.4
@@ -70,6 +73,9 @@ services:
       spark://spark-master:7077
     depends_on:
       - spark-master
+    volumes:
+      - ~/spark-jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-aws-3.3.4.jar
+      - ~/spark-jars/aws-java-sdk-bundle-1.12.262.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
 
   spark-history:
     image: apache/spark:3.4.4
@@ -91,6 +97,9 @@ services:
       - "18080:18080"
     depends_on:
       - spark-master
+    volumes:
+      - ~/spark-jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-aws-3.3.4.jar
+      - ~/spark-jars/aws-java-sdk-bundle-1.12.262.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
 EOF
 
 # ── Systemd service (sole owner of stack lifecycle) ───────────────────────────
@@ -119,3 +128,11 @@ systemctl enable crypto-spark.service
 systemctl start crypto-spark.service
 
 echo "Spark bootstrap complete"
+
+
+df = spark.readStream \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", "10.0.1.82:9092") \
+    .option("subscribe", "crypto.trades") \
+    .option("startingOffsets", "earliest") \
+    .load()
