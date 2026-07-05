@@ -42,9 +42,10 @@ def ingest_dag():
             "org.apache.spark:spark-avro_2.12:3.4.0"
         ),
         conf={
-            "spark.sql.extensions":
-                "io.delta.sql.DeltaSparkSessionExtension",
+            "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+            "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             "spark.jars.ivy": "/tmp/.ivy2",
+            "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.InstanceProfileCredentialsProvider",
         },
         execution_timeout=timedelta(minutes=25),
     )
