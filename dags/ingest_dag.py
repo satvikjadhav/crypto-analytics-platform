@@ -5,11 +5,12 @@ from datetime import datetime, timedelta
 import os
 
 default_args = {
-    "owner":            "satvik",
-    "retries":          2,
-    "retry_delay":      timedelta(minutes=3),
+    "owner": "satvik",
+    "retries": 2,
+    "retry_delay": timedelta(minutes=3),
     "email_on_failure": False,
 }
+
 
 @dag(
     dag_id="crypto_ingestion",
@@ -33,7 +34,7 @@ def ingest_dag():
     submit_spark = SparkSubmitOperator(
         task_id="spark_streaming_ingest",
         application="/opt/spark/jobs/streaming_ingest.py",
-        conn_id="spark_ec2",   # points to Spark EC2 private IP — set up in Task 2
+        conn_id="spark_ec2",  # points to Spark EC2 private IP — set up in Task 2
         packages=(
             "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.0,"
             "io.delta:delta-core_2.12:2.4.0,"
@@ -51,5 +52,6 @@ def ingest_dag():
     )
 
     fetch_market_meta >> submit_spark
+
 
 ingest_dag()

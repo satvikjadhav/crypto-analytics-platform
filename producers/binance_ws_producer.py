@@ -13,9 +13,7 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 
 
 load_dotenv("/opt/producers/.env")
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 # Coinbase Advanced Trade WebSocket — no geo-restrictions
@@ -23,16 +21,16 @@ WS_URL = "wss://advanced-trade-ws.coinbase.com"
 
 PRODUCTS = ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "BNB-USD"]
 
-SUBSCRIBE_MSG = json.dumps({
-    "type": "subscribe",
-    "product_ids": PRODUCTS,
-    "channel": "market_trades",
-})
+SUBSCRIBE_MSG = json.dumps(
+    {
+        "type": "subscribe",
+        "product_ids": PRODUCTS,
+        "channel": "market_trades",
+    }
+)
 
 # ── Schema Registry ──────────────────────────────────────────────────
-schema_registry_client = SchemaRegistryClient({
-    "url": os.getenv("SCHEMA_REGISTRY_URL")
-})
+schema_registry_client = SchemaRegistryClient({"url": os.getenv("SCHEMA_REGISTRY_URL")})
 
 with open("/opt/airflow/repo/schemas/trade_event.avsc") as f:
     schema_str = f.read()
@@ -44,12 +42,14 @@ avro_serializer = AvroSerializer(
 )
 
 # ── Kafka producer ───────────────────────────────────────────────────
-producer = Producer({
-    "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP"),
-    "acks": "all",
-    "retries": 3,
-    "retry.backoff.ms": 500,
-})
+producer = Producer(
+    {
+        "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP"),
+        "acks": "all",
+        "retries": 3,
+        "retry.backoff.ms": 500,
+    }
+)
 
 
 def delivery_report(err, msg):
@@ -72,12 +72,12 @@ def on_message(ws, message):
         for trade in wrapper.get("events", []):
             for t in trade.get("trades", []):
                 event = {
-                    "symbol":         t["product_id"].replace("-", ""),
-                    "price":          float(t["price"]),
-                    "quantity":       float(t["size"]),
-                    "trade_time":     int(time.time() * 1000),
+                    "symbol": t["product_id"].replace("-", ""),
+                    "price": float(t["price"]),
+                    "quantity": float(t["size"]),
+                    "trade_time": int(time.time() * 1000),
                     "is_buyer_maker": t["side"] == "SELL",
-                    "ingestion_ts":   int(time.time() * 1000),
+                    "ingestion_ts": int(time.time() * 1000),
                 }
 
                 value_bytes = avro_serializer(
