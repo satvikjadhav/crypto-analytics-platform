@@ -29,8 +29,8 @@ print(f"[INFO] Fetched schema for subject '{SUBJECT}':\n{schema_json}\n")
 
 spark = (
     SparkSession.builder.appName("CryptoTradesIngest")
-    .master(os.getenv("SPARK_MASTER", "spark://spark-master:7077"))
-    .config("spark.jars.packages", PACKAGES)
+    # .master(os.getenv("SPARK_MASTER", "spark://spark-master:7077"))
+    # .config("spark.jars.packages", PACKAGES)
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
     .config(
         "spark.sql.catalog.spark_catalog",
@@ -100,4 +100,4 @@ delta_query = (
 # )
 
 
-delta_query.awaitTermination()
+delta_query.awaitTermination(300)
