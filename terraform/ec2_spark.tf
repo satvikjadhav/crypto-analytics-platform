@@ -70,6 +70,22 @@ resource "aws_iam_role_policy" "spark_s3" {
   })
 }
 
+resource "aws_iam_role_policy" "spark_secrets" {
+  name = "crypto-spark-secrets-policy"
+  role = aws_iam_role.spark.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:crypto-analytics/snowflake/pipeline*"
+      }
+    ]
+  })
+}
+
 # AmazonSSMManagedInstanceCore covers all SSM/ec2messages/ssmmessages permissions
 # and stays current as AWS updates the SSM agent — preferred over an inline policy.
 resource "aws_iam_role_policy_attachment" "spark_ssm" {
