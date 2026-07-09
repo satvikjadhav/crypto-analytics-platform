@@ -157,11 +157,19 @@ resource "aws_security_group" "spark" {
   vpc_id = aws_vpc.main.id
 
   ingress {
-    from_port   = 8080
-    to_port     = 8080
+    from_port   = 8082
+    to_port     = 8082
     protocol    = "tcp"
     cidr_blocks = [local.my_cidr]
     description = "Spark UI from laptop"
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+    description = "SSH from VPC (Airflow EC2)"
   }
 
   ingress {

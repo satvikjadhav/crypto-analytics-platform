@@ -35,7 +35,7 @@ chmod -R 775 /opt/airflow/logs /opt/airflow/plugins
 cat > /opt/airflow/docker-compose.yml << COMPOSE_EOF
 version: '3.8'
 x-airflow-common: &airflow-common
-  image: apache/airflow:2.8.1
+  image: .
   user: "50000:0"
   environment:
     _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-apache-spark==4.7.2"
@@ -49,6 +49,7 @@ x-airflow-common: &airflow-common
     - /opt/airflow/repo/dags:/opt/airflow/dags
     - /opt/airflow/logs:/opt/airflow/logs
     - /opt/airflow/plugins:/opt/airflow/plugins
+    - /opt/airflow/repo/producers:/opt/airflow/repo/producers
   depends_on:
     postgres:
       condition: service_healthy
