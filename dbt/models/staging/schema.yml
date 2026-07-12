@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: stg_trades
+    columns:
+      - name: coin_symbol
+        tests: [not_null]
+      - name: trade_timestamp
+        tests: [not_null]
+      - name: price
+        tests: [not_null]
+      - name: is_buyer_maker
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: stg_market_meta
+    columns:
+      - name: coin_id
+        tests: [not_null, unique]
+      - name: symbol
+        tests: [not_null]
+      - name: market_cap_rank
+        tests: [not_null]

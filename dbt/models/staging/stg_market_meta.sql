@@ -12,6 +12,6 @@ SELECT
     price_change_pct_24h,
     circulating_supply,
     ath,
-    TO_TIMESTAMP_NTZ(ingestion_ts / 1000)       AS ingested_at
+    ingestion_ts as ingested_at
 
 FROM {{ source('raw', 'market_meta') }}
