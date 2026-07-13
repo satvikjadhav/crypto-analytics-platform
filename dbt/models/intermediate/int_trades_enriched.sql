@@ -19,4 +19,4 @@ select
 
 from {{ ref('stg_trades') }} as t
 left join {{ ref('stg_market_meta') }} as m
-on UPPER(t.coin_symbol) = UPPER(m.coin_symbol)
+on UPPER(t.coin_symbol) = UPPER(m.symbol)

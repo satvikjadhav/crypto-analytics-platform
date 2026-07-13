@@ -7,7 +7,7 @@ with lagged as (
         trade_timestamp,
         trade_date,
         lag(price) over (partition by coin_symbol order by trade_timestamp) as prev_price
-    from {{ red('stg_trades') }}
+    from {{ ref('stg_trades') }}
 )
 
 select

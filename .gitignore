@@ -11,6 +11,7 @@ terraform/.terraform.lock.hcl
 terraform/terraform.tfvars
 terraform/terraform_outputs.json
 terraform/tfplan
-dbt/logs/*
+dbt/logs/
 dbt/.user.yml
 dbt/.vscode/
+dbt/target/
