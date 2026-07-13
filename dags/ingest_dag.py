@@ -42,9 +42,6 @@ def ingest_dag():
             docker exec spark-master /opt/spark/bin/spark-submit \
             --master spark://spark-master:7077 \
             --conf spark.jars.ivy=/tmp/.ivy2 \
-            --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension \
-            --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
-            --conf spark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.InstanceProfileCredentialsProvider \
             --conf spark.executorEnv.KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS} \
             --conf spark.executorEnv.S3_BUCKET=${S3_BUCKET} \
             --conf spark.executorEnv.SCHEMA_REGISTRY_URL=${SCHEMA_REGISTRY_URL} \
@@ -56,7 +53,38 @@ def ingest_dag():
         conn_timeout=30,
     )
 
-    fetch_market_meta >> submit_spark
+    submit_spark_market_meta_ingest = SSHOperator(
+        task_id="submit_spark_market_meta_ingest",
+        ssh_conn_id="spark_ec2_ssh",
+        command="""
+            # Load env vars from the file on the host, then pass them into docker exec
+            set -a && source /opt/spark/.env && set +a
+
+            docker exec spark-master /opt/spark/bin/spark-submit \
+            --master spark://spark-master:7077 \
+            --conf spark.jars.ivy=/tmp/.ivy2 \
+            --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.0,io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 \
+            /opt/spark/jobs/market_meta_ingest.py
+        """,
+    )
+
+    load_to_snowflake = SSHOperator(
+        task_id="load_to_snowflake",
+        ssh_conn_id="spark_ec2_ssh",
+        command="""
+            set -a && source /opt/spark/.env && set +a
+
+            docker exec spark-master /opt/spark/bin/spark-submit \
+            --master spark://spark-master:7077 \
+            --conf spark.jars.ivy=/tmp/.ivy2 \
+            --conf spark.executorEnv.S3_BUCKET=${S3_BUCKET} \
+            --conf spark.executorEnv.AWS_REGION=${AWS_REGION} \
+            --packages io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,net.snowflake:spark-snowflake_2.12:2.12.0-spark_3.4,net.snowflake:snowflake-jdbc:3.14.1 \
+            /opt/spark/jobs/delta_to_snowflake.py
+        """,
+    )
+
+    fetch_market_meta >> submit_spark_market_meta_ingest >> submit_spark >> load_to_snowflake
 
 
 ingest_dag()

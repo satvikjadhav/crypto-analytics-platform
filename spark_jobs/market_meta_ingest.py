@@ -7,8 +7,15 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, LongType, DoubleType
 from delta.tables import DeltaTable
 
+
+# docker exec spark-master /opt/spark/bin/spark-submit \
+#    --master spark://spark-master:7077 \
+#    --conf spark.jars.ivy=/tmp/.ivy2 \
+#    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.0,io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 \
+#    /opt/spark/jobs/market_meta_ingest.py
+
 # config
-load_dotenv("/opt/producers/.env")
+load_dotenv("/opt/spark/.env")
  
 logging.basicConfig(
     level=logging.INFO,
@@ -16,10 +23,10 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
  
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:29092")
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 KAFKA_TOPIC     = "crypto.market_meta"
  
-BUCKET     = os.getenv("BUCKET", "your-bucket-name")
+BUCKET     = os.getenv("S3_BUCKET", "s3_bucket_name")
 DELTA_PATH = f"s3a://{BUCKET}/curated/delta/market_meta/"
 
 # schema for market_meta
@@ -40,10 +47,18 @@ PAYLOAD_SCHEMA = StructType([
 
 # spark session and log
 def build_spark() -> SparkSession:
+
+    PACKAGES = ",".join([
+        "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.0",
+        "io.delta:delta-core_2.12:2.4.0",
+        "org.apache.hadoop:hadoop-aws:3.3.4",
+        "com.amazonaws:aws-java-sdk-bundle:1.12.262",
+    ])
+
     return (
         SparkSession.builder.appName("market_meta_delta_writer")
         # .master(os.getenv("SPARK_MASTER", "spark://spark-master:7077"))
-        # .config("spark.jars.packages", PACKAGES)
+        .config("spark.jars.packages", PACKAGES)
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config(
             "spark.sql.catalog.spark_catalog",
