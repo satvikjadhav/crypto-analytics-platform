@@ -27,4 +27,4 @@ from {{ ref('mart_coin_daily_ohlcv') }}  as o
 join {{ ref('stg_market_meta') }} as m on upper(o.coin_symbol) = upper(m.symbol)
 cross join total_market as t
 where o.trade_date = current_date()
-oder by o.market_cap_rank asc nulls last
+order by o.market_cap_rank asc nulls last
