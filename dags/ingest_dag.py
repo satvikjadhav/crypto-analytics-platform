@@ -1,9 +1,8 @@
 from airflow.decorators import dag
 from airflow.operators.bash import BashOperator
-from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from datetime import datetime, timedelta
-import os
+from airflow.utils.task_group import TaskGroup
 
 default_args = {
     "owner": "satvik",
@@ -11,6 +10,10 @@ default_args = {
     "retry_delay": timedelta(minutes=3),
     "email_on_failure": False,
 }
+
+DBT_PROJECT  = "/opt/airflow/repo/dbt/crypto_analytics"
+DBT_PROFILES = "/opt/airflow/repo/dbt"
+DBT_ENV      = "source /opt/airflow/snowflake.env && "
 
 
 @dag(
@@ -84,7 +87,32 @@ def ingest_dag():
         """,
     )
 
-    fetch_market_meta >> submit_spark_market_meta_ingest >> submit_spark >> load_to_snowflake
+    with TaskGroup(group_id='dbt_transformation') as dbt_transform:
+        dbt_run = BashOperator(
+            task_id="dbt_run",
+            bash_command=(
+                f"{DBT_ENV}"
+                f"dbt run "
+                f"--profiles-dir {DBT_PROFILES} "
+                f"--project-dir {DBT_PROJECT} "
+                f"--target dev"
+            ),
+        )
+
+        dbt_test = BashOperator(
+            task_id="dbt_test",
+            bash_command=(
+                f"{DBT_ENV}"
+                f"dbt test "
+                f"--profiles-dir {DBT_PROFILES} "
+                f"--project-dir {DBT_PROJECT} "
+                f"--target dev"
+            ),
+        )
+
+        dbt_run >> dbt_test
+
+    fetch_market_meta >> submit_spark_market_meta_ingest >> submit_spark >> load_to_snowflake >> dbt_transform
 
 
 ingest_dag()
