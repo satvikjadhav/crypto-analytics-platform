@@ -10,7 +10,7 @@ select
     o.trade_date,
     o.coin_symbol,
     o.coin_name,
-    o.market_capr_rank,
+    o.market_cap_rank,
     o.close_price as current_price,
     m.market_cap,
     o.total_volume_usd as volume_24h_usd,

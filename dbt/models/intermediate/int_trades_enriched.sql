@@ -5,6 +5,7 @@ select
     t.price,
     t.quantity,
     t.trade_timestamp,
+    t.trade_date,
     t.is_buyer_maker,
     t.ingestion_ts,
     t.price * t.quantity as trade_value_usd,

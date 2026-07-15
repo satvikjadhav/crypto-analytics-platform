@@ -35,11 +35,11 @@ ranked as (
             (t.today_vwap - y.yesterday_vwap) / nullif(y.yesterday_vwap, 0) * 100, 4
         ) as change_24h_pct,
         rank() over (order by t.day_change_pct desc) as gainer_rank,
-        rank() over (order by t.day_changepct asc) as loser_rank
+        rank() over (order by t.day_change_pct asc) as loser_rank
     from today as t
     left join yesterday as y on t.coin_symbol = y.coin_symbol
 )
 
-select * from rarnked
+select * from ranked
 where gainer_rank <= 20 or loser_rank <= 20
 order by day_change_pct desc
