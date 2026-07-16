@@ -22,6 +22,23 @@
 | CI/CD | GitHub Actions | GitHub |
 | Local dev | Docker Compose (mirrors EC2 stack) | Laptop |
 
+
+## Data Model (3-layer dbt architecture)
+
+| Layer | Schema | Materialization | Purpose |
+|-------|--------|----------------|---------|
+| Staging | STAGING | View | Rename, cast — no business logic |
+| Intermediate | STAGING | View | Joins, window functions, aggregations |
+| Marts | MARTS | Table (clustered) | Dashboard-ready output |
+
+### Mart tables
+- `mart_coin_daily_ohlcv` — Daily OHLCV + VWAP per coin. Primary dashboard source.
+- `mart_top_movers` — Top 20 gainers and losers by 24h change.
+- `mart_market_overview` — Current price, market cap, dominance % per coin.
+
+### dbt Lineage
+![dbt lineage graph](images/SCR-20260715-btvt.png)
+
 ## Local setup
 ```bash
 git clone https://github.com/{username}/crypto-analytics-platform.git
