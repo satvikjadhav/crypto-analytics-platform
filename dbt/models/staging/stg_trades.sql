@@ -1,7 +1,7 @@
 {{ config(materialized='view', schema='STAGING') }}
 
 SELECT
-    symbol as coin_symbol,
+    left(symbol,3) as coin_symbol,
     cast(price as float) as price,
     cast(quantity as float) as quantity,
     trade_time as trade_timestamp,
