@@ -38,7 +38,7 @@ x-airflow-common: &airflow-common
   image: .
   user: "50000:0"
   environment:
-    _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-apache-spark==4.7.2 dbt-snowflake"
+    _PIP_ADDITIONAL_REQUIREMENTS: "dbt-snowflake==1.10.2 dbt-core==2.0.0a2"
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'

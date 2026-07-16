@@ -11,10 +11,9 @@ default_args = {
     "email_on_failure": False,
 }
 
-DBT_PROJECT  = "/opt/airflow/repo/dbt/crypto_analytics"
-DBT_PROFILES = "/opt/airflow/repo/dbt"
+DBT_PROJECT  = "/opt/airflow/dbt"
+DBT_PROFILES = "/opt/airflow/dbt"
 DBT_ENV      = "source /opt/airflow/snowflake.env && "
-
 
 @dag(
     dag_id="crypto_ingestion",
@@ -91,7 +90,6 @@ def ingest_dag():
         dbt_run = BashOperator(
             task_id="dbt_run",
             bash_command=(
-                f"{DBT_ENV}"
                 f"dbt run "
                 f"--profiles-dir {DBT_PROFILES} "
                 f"--project-dir {DBT_PROJECT} "
@@ -102,7 +100,6 @@ def ingest_dag():
         dbt_test = BashOperator(
             task_id="dbt_test",
             bash_command=(
-                f"{DBT_ENV}"
                 f"dbt test "
                 f"--profiles-dir {DBT_PROFILES} "
                 f"--project-dir {DBT_PROJECT} "
