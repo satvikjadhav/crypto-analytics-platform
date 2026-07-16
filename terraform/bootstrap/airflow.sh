@@ -38,18 +38,27 @@ x-airflow-common: &airflow-common
   image: .
   user: "50000:0"
   environment:
-    _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-apache-spark==4.7.2"
+    _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-apache-spark==4.7.2 dbt-snowflake"
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__FERNET_KEY: '$FERNET_KEY'
     KAFKA_BOOTSTRAP_SERVERS: '${kafka_private_ip}:9092'
     SPARK_MASTER_URL: 'spark://${spark_private_ip}:7077'
+    # pulls from .env file in the repo
+    SNOWFLAKE_ACCOUNT:
+    SNOWFLAKE_USER:
+    SNOWFLAKE_PASSWORD:
+    SNOWFLAKE_DATABASE:
+    SNOWFLAKE_WAREHOUSE:
+    SNOWFLAKE_SCHEMA:
+    SNOWFLAKE_ROLE:
   volumes:
     - /opt/airflow/repo/dags:/opt/airflow/dags
     - /opt/airflow/logs:/opt/airflow/logs
     - /opt/airflow/plugins:/opt/airflow/plugins
     - /opt/airflow/repo/producers:/opt/airflow/repo/producers
+    - /opt/airflow/repo/dbt:/opt/airflow/dbt 
   depends_on:
     postgres:
       condition: service_healthy
