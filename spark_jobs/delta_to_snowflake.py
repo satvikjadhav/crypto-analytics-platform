@@ -5,6 +5,7 @@ from datetime import date
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
+import snowflake.connector
 
 # Snowflake credentials from Secrets Manager
 sm = boto3.client("secretsmanager", region_name=os.getenv("AWS_REGION", "us-east-1"))
@@ -51,6 +52,19 @@ spark = (
 )
 
 try:
+    # delete today's partition first
+    conn = snowflake.connector.connect(
+        account=secret["account"],
+        user=secret["username"],
+        password=secret["password"],
+        database=secret["database"],
+        warehouse=secret["warehouse"],
+        role=secret["role"],
+    )
+    cur = conn.cursor()
+    cur.execute(f"DELETE FROM RAW.TRADES WHERE DATE(TRADE_TIME) = '{TODAY}'")
+    
+    # Load trades: today's partition only
     TRADES_COLS = [
         "symbol",
         "price",
