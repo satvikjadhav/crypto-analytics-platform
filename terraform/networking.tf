@@ -205,3 +205,44 @@ resource "aws_security_group" "spark" {
 
   tags = { Name = "crypto-spark-sg" }
 }
+
+# ── Superset and Streamlit security group ─────────────
+
+resource "aws_security_group" "serving" {
+  name        = "crypto-serving-sg"
+  description = "Superset + Streamlit"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.my_cidr]
+    description = "SSH from laptop"
+  }
+
+  ingress {
+    from_port   = 8088
+    to_port     = 8088
+    protocol    = "tcp"
+    cidr_blocks = [local.my_cidr]
+    description = "Apache Superset"
+  }
+
+  ingress {
+    from_port   = 8501
+    to_port     = 8501
+    protocol    = "tcp"
+    cidr_blocks = [local.my_cidr]
+    description = "Streamlit"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "crypto-serving-sg" }
+}
