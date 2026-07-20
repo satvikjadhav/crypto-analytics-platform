@@ -1,0 +1,44 @@
+# superset/docker-compose.yml
+services:
+  superset-db:
+    image: postgres:15-alpine
+    container_name: superset_db
+    environment:
+      POSTGRES_DB:       superset
+      POSTGRES_USER:     superset
+      POSTGRES_PASSWORD: ${SUPERSET_DB_PASSWORD:-superset_secret}
+    volumes:
+      - superset_db_data:/var/lib/postgresql/data
+
+  superset-cache:
+    image: redis:7-alpine
+    container_name: superset_cache
+
+  superset:
+    build: .
+    container_name: superset_app
+    depends_on:
+      - superset-db
+      - superset-cache
+    ports:
+      - "8088:8088"
+    env_file:
+      - .env
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+      - ./init_superset.sh:/app/init_superset.sh
+      - ../../dashboards:/app/dashboards
+    command: >
+      bash -c "/app/init_superset.sh &&
+               gunicorn
+               --bind 0.0.0.0:8088
+               --workers 4
+               --worker-class gthread
+               --threads 4
+               --timeout 120
+               --limit-request-line 0
+               --limit-request-field_size 0
+               'superset.app:create_app()'"
+
+volumes:
+  superset_db_data:
