@@ -44,12 +44,11 @@ services:
     environment:
       SPARK_NO_DAEMONIZE: 'true'
     command: >
-      bash -c "pip install boto3 &&
       /opt/spark/bin/spark-class
       org.apache.spark.deploy.master.Master
       --host spark-master
       --port 7077
-      --webui-port 8080"
+      --webui-port 8080
     ports:
       - "8082:8080"
       - "7077:7077"
@@ -68,7 +67,6 @@ services:
     environment:
       SPARK_NO_DAEMONIZE: 'true'
     command: >
-      bash -c "pip install boto3 &&
       /opt/spark/bin/spark-class
       org.apache.spark.deploy.worker.Worker
       --cores $CORES
@@ -105,6 +103,33 @@ services:
       - ~/spark-jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-aws-3.3.4.jar
       - ~/spark-jars/aws-java-sdk-bundle-1.12.262.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
       - /opt/spark/jobs:/opt/spark/jobs
+  
+  spark-jupyter:
+    build: .
+    hostname: spark-jupyter
+    container_name: spark-jupyter
+    restart: always
+    env_file:
+      - .env
+    environment:
+      SPARK_NO_DAEMONIZE: 'true'
+    command: >
+      jupyter lab
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --NotebookApp.token=''
+      --NotebookApp.password=''
+      --notebook-dir=/opt/spark/notebooks
+    ports:
+      - "8888:8888"
+    depends_on:
+      - spark-master
+    volumes:
+      - ~/spark-jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-aws-3.3.4.jar
+      - ~/spark-jars/aws-java-sdk-bundle-1.12.262.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
+      - /opt/spark/jobs:/opt/spark/jobs
+      - /opt/spark/notebooks:/opt/spark/notebooks   # <-- your notebooks live here
 EOF
 
 # ── Systemd service (sole owner of stack lifecycle) ───────────────────────────
