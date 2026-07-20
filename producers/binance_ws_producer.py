@@ -19,7 +19,44 @@ log = logging.getLogger(__name__)
 # Coinbase Advanced Trade WebSocket — no geo-restrictions
 WS_URL = "wss://advanced-trade-ws.coinbase.com"
 
-PRODUCTS = ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "BNB-USD"]
+PRODUCTS = [
+    # Large-caps
+    "BTC-USD",
+    "ETH-USD",
+    "SOL-USD",
+    "ADA-USD",
+    "BNB-USD",
+
+    # Layer 1 / smart contract platforms
+    "AVAX-USD",
+    "DOT-USD",
+    "NEAR-USD",
+    "APT-USD",
+    "SUI-USD",
+    "TON-USD",
+
+    # Layer 2s
+    "MATIC-USD",   # Polygon
+    "ARB-USD",
+    "OP-USD",
+
+    # DeFi blue chips
+    "UNI-USD",
+    "AAVE-USD",
+    "LDO-USD",     # Lido
+
+    # Meme / high-volume
+    "DOGE-USD",
+    "SHIB-USD",
+    "PEPE-USD",
+
+    # Other liquid assets
+    "LINK-USD",
+    "XRP-USD",
+    "LTC-USD",
+    "XLM-USD",
+    "ATOM-USD",
+]
 
 SUBSCRIBE_MSG = json.dumps(
     {
