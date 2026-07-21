@@ -28,17 +28,7 @@ services:
       - ./superset_config.py:/app/pythonpath/superset_config.py
       - ./init_superset.sh:/app/init_superset.sh
       - ../../dashboards:/app/dashboards
-    command: >
-      bash -c "/app/init_superset.sh &&
-               gunicorn
-               --bind 0.0.0.0:8088
-               --workers 4
-               --worker-class gthread
-               --threads 4
-               --timeout 120
-               --limit-request-line 0
-               --limit-request-field_size 0
-               'superset.app:create_app()'"
+    command: bash /app/init_superset.sh
 
 volumes:
   superset_db_data:
