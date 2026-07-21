@@ -9,7 +9,7 @@ data "aws_ami" "ubuntu_22_serving" {
 
 resource "aws_instance" "serving" {
   ami                    = data.aws_ami.ubuntu_22_serving.id
-  instance_type          = "t3.medium"
+  instance_type          = "c7i-flex.large"
   key_name               = aws_key_pair.crypto.key_name  # fixed: was aws_key_pair.main
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.serving.id]
@@ -38,6 +38,45 @@ resource "aws_instance" "serving" {
   EOF
 
   tags = { Name = "crypto-serving" }
+}
+
+# IAM role for the serving instance
+resource "aws_iam_role" "serving" {
+  name = "crypto-serving-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+
+  tags = { Name = "crypto-serving-role" }
+}
+
+# Instance profile to attach the role to EC2
+resource "aws_iam_instance_profile" "serving" {
+  name = "crypto-serving-profile"
+  role = aws_iam_role.serving.name
+}
+
+# IAM policy to allow the serving instance to access secrets in Secrets Manager
+resource "aws_iam_role_policy" "serving_secrets" {
+  name = "crypto-serving-secrets-policy"
+  role = aws_iam_role.serving.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:crypto-analytics/snowflake/pipeline*"
+      }
+    ]
+  })
 }
 
 resource "aws_eip" "serving" {
