@@ -42,6 +42,7 @@ spark = (
     )
     .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+    .config("spark.sql.shuffle.partitions", 4)
     .getOrCreate()
 )
 
@@ -68,7 +69,11 @@ parsed = (
     .withColumn("date", F.to_date("trade_timestamp"))
 )
 
-good = parsed.filter(F.col("symbol").isNotNull())
+good = (
+    parsed
+    .filter(F.col("symbol").isNotNull())
+    #.dropDuplicates(['symbol', 'price', 'quantity', 'trade_time', 'is_buyer_maker', 'ingestion_ts', 'trade_timestamp', 'date'])
+    )
 # bad = parsed.filter(F.col("symbol").isNull())
 
 # ── Delta Lake sink ───────────────────────────────────────────────────────────
