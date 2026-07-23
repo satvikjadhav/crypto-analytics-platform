@@ -88,6 +88,8 @@ services:
       - .env
     environment:
       SPARK_NO_DAEMONIZE: 'true'
+      XDG_RUNTIME_DIR: /tmp/jupyter-runtime
+      JUPYTER_RUNTIME_DIR: /tmp/jupyter-runtime
       SPARK_HISTORY_OPTS: >-
         -Dspark.history.fs.logDirectory=s3a://${s3_bucket}/spark-logs
         -Dspark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
