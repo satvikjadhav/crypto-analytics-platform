@@ -56,6 +56,7 @@ services:
       - ~/spark-jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-aws-3.3.4.jar
       - ~/spark-jars/aws-java-sdk-bundle-1.12.262.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
       - /opt/spark/jobs:/opt/spark/jobs
+      - ./spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
 
   spark-worker:
     image: apache/spark:3.4.4
@@ -78,6 +79,7 @@ services:
       - ~/spark-jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-aws-3.3.4.jar
       - ~/spark-jars/aws-java-sdk-bundle-1.12.262.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
       - /opt/spark/jobs:/opt/spark/jobs
+      - ./spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
 
   spark-history:
     image: apache/spark:3.4.4
@@ -108,7 +110,7 @@ services:
       - ~/spark-jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/hadoop-aws-3.3.4.jar
       - ~/spark-jars/aws-java-sdk-bundle-1.12.262.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar
       - /opt/spark/jobs:/opt/spark/jobs
-  
+      - ./spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
   spark-jupyter:
     build: .
     hostname: spark-jupyter
