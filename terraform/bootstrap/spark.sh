@@ -88,11 +88,14 @@ services:
       - .env
     environment:
       SPARK_NO_DAEMONIZE: 'true'
+      SPARK_EXTRA_CLASSPATH: '/opt/spark/jars/hadoop-aws-3.3.4.jar:/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar'
       XDG_RUNTIME_DIR: /tmp/jupyter-runtime
       JUPYTER_RUNTIME_DIR: /tmp/jupyter-runtime
       SPARK_HISTORY_OPTS: >-
         -Dspark.history.fs.logDirectory=s3a://${s3_bucket}/spark-logs
         -Dspark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+        # Use the instance profile credentials provider to avoid hardcoding AWS keys.
+        -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.InstanceProfileCredentialsProvider
         -Dspark.hadoop.com.amazonaws.services.s3.enableV4=true
     command: >
       /opt/spark/bin/spark-class
