@@ -10,16 +10,12 @@ load_dotenv("/opt/producers/.env")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-ENDPOINT = (
-    "https://api.coingecko.com/api/v3/coins/markets"
-    "?vs_currency=usd&order=market_cap_desc&per_page=50"
-)
+BASE_ENDPOINT = "https://api.coingecko.com/api/v3/coins/markets"
 HEADERS = {"x-cg-demo-api-key": os.getenv("COINGECKO_API_KEY", "")}
 
 producer = Producer(
     {
         "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP"),
-        # e.g. 10.0.x.x:29092  ← Kafka EC2 private IP
     }
 )
 
@@ -29,7 +25,33 @@ def delivery_report(err, msg):
         logging.error("Delivery failed: %s", err)
 
 
-coins = requests.get(ENDPOINT, headers=HEADERS, timeout=10).json()
+def fetch_all_coins():
+    all_coins = []
+    page = 1
+
+    while True:
+        params = {
+            "vs_currency": "usd",
+            "order": "market_cap_desc",
+            "per_page": 250,
+            "page": page,
+        }
+        response = requests.get(BASE_ENDPOINT, params=params, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        batch = response.json()
+
+        if not batch:
+            break
+
+        all_coins.extend(batch)
+        logging.info("Page %d: fetched %d coins (total: %d)", page, len(batch), len(all_coins))
+        page += 1
+        time.sleep(1.5)  # ~30 req/min free tier limit
+
+    return all_coins
+
+
+coins = fetch_all_coins()
 ts = int(time.time() * 1000)
 
 for coin in coins:
@@ -41,9 +63,9 @@ for coin in coins:
         "market_cap": int(coin["market_cap"] or 0),
         "market_cap_rank": int(coin["market_cap_rank"] or 0),
         "total_volume": float(coin["total_volume"] or 0),
-        "price_change_24h": coin["price_change_24h"],  # nullable
-        "price_change_pct_24h": coin["price_change_percentage_24h"],  # nullable
-        "circulating_supply": coin["circulating_supply"],  # nullable
+        "price_change_24h": coin["price_change_24h"],
+        "price_change_pct_24h": coin["price_change_percentage_24h"],
+        "circulating_supply": coin["circulating_supply"],
         "ath": float(coin["ath"] or 0),
         "ingestion_ts": ts,
     }
@@ -55,3 +77,4 @@ for coin in coins:
     )
 
 producer.flush()
+logging.info("Flushed %d records to Kafka", len(coins))
