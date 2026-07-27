@@ -165,11 +165,3 @@ systemctl enable crypto-spark.service
 systemctl start crypto-spark.service
 
 echo "Spark bootstrap complete"
-
-
-df = spark.readStream \
-    .format("kafka") \
-    .option("kafka.bootstrap.servers", "10.0.1.82:9092") \
-    .option("subscribe", "crypto.trades") \
-    .option("startingOffsets", "earliest") \
-    .load()
