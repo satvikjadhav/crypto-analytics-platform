@@ -244,3 +244,7 @@ terraform destroy
     └── workflows/
         └── ci.yml
 ```
+
+## Sample Dashboard Image(s)
+
+![Crypto Dashboard](images/crypto_dashboard.jpg)
