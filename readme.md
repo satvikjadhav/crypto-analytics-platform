@@ -60,6 +60,19 @@ Apache Superset  ← EC2 c7i-flex.large (serving)
 
 ---
 
+## Performance Metrics
+
+_Measured 2026-08-16 — end-to-end pipeline run_
+
+| Pipeline Stage | p50 (ms) | p95 (ms) | p99 (ms) | Notes |
+|---|---|---|---|---|
+| Kafka producer → consumer | 0 | 0 | 1 | n=100 messages |
+| Spark micro-batch processing | 30000 | N/A | N/A | 30-s trigger interval |
+| Delta Lake S3 write | 216000 | N/A | N/A | window across log commits |
+| Snowflake COPY INTO | 1503 | 2295 | 2295 | ~500K rows |
+
+---
+
 ## Kafka Topics
 
 | Topic | Partitions | Purpose |
@@ -118,6 +131,14 @@ S3 bucket is private (all public access blocked), AES-256 encrypted, versioned. 
 Airflow runs with `LocalExecutor` on a t3.small. DAGs sync from this repo every 5 minutes via a cron job (`git pull origin main`). The Fernet key is generated on first boot and persisted to Secrets Manager so it survives instance replacement.
 
 The Snowflake credentials (account, user, password, database, warehouse, role) are injected into the Airflow container via environment variables sourced from Secrets Manager at startup.
+
+### Airflow Screenshots
+
+Airflow Graph View
+![Crypto Dashboard](images/airflow_graph.png)
+
+Airflow Task Duration
+![Crypto Dashboard](images/airflow_task_duration.png)
 
 ---
 
